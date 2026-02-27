@@ -1,13 +1,13 @@
 <?php
 /**
- * Plugin Name: SIR Style Attendance Pro (Modern UI + Ranking)
- * Description: 이미지 레이아웃 기반의 현대적인 출석 시스템 (랭킹 복구 버전)
+ * Plugin Name: SIR Style Attendance Pro (Width Optimized)
+ * Description: 가로 사이즈를 모든 테마 컨텐츠 영역에 맞춰 최적화한 출석 시스템
  */
 
 if (!defined('ABSPATH')) exit;
 
 /**
- * 1. DB 테이블 생성 (bonus_points 컬럼 포함)
+ * 1. DB 테이블 생성
  */
 register_activation_hook(__FILE__, 'sir_attendance_setup_table');
 function sir_attendance_setup_table() {
@@ -33,7 +33,7 @@ function sir_attendance_setup_table() {
 }
 
 /**
- * 2. 관리자 메뉴 (기록 목록 및 설정)
+ * 2. 관리자 메뉴
  */
 add_action('admin_menu', 'sir_attendance_admin_menu');
 function sir_attendance_admin_menu() {
@@ -69,7 +69,7 @@ function sir_attendance_settings_page() {
 }
 
 /**
- * 3. 출석 처리 (AJAX)
+ * 3. 출석 처리 (AJAX) - 숏코드와 배너 공용
  */
 add_action('wp_ajax_process_attendance', 'sir_ajax_process_attendance');
 function sir_ajax_process_attendance() {
@@ -100,7 +100,109 @@ function sir_ajax_process_attendance() {
 }
 
 /**
- * 4. 숏코드 [sir_attendance] (이미지 레이아웃 + 랭킹 복구)
+ * 3. 논모달 플로팅 배너 및 네온 효과
+ */
+add_action('wp_footer', 'sir_attendance_neon_floating_banner');
+function sir_attendance_neon_floating_banner() {
+    if (!is_user_logged_in()) return;
+
+    global $wpdb;
+    $user_id = get_current_user_id();
+    $table_name = $wpdb->prefix . 'attendance_logs';
+    $today = date('Y-m-d');
+
+    $is_today_done = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table_name WHERE user_id = %d AND check_date = %s", $user_id, $today));
+    
+    // 출석 완료 시 배너를 출력하지 않음 (자동 사라짐 효과)
+    if ($is_today_done) return;
+
+    $total_days = (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $table_name WHERE user_id = %d", $user_id));
+    $total_points = (int)$wpdb->get_var($wpdb->prepare("SELECT SUM(points + bonus_points) FROM $table_name WHERE user_id = %d", $user_id));
+    ?>
+
+    <div id="sir-atc-neon-banner" onclick="toggleAtcNonModal()">
+        <div class="neon-icon">🔔</div>
+        <div class="neon-text">오늘의 출석이 남았습니다!</div>
+    </div>
+
+    <div id="sir-atc-nonmodal-window">
+        <div class="atc-window-header">
+            <span>출석체크 현황</span>
+            <span class="close-btn" onclick="toggleAtcNonModal()">&times;</span>
+        </div>
+        <div class="atc-window-body">
+            <p>누적 출석: <strong><?php echo $total_days; ?>일</strong></p>
+            <p>누적 포인트: <strong><?php echo number_format($total_points); ?>P</strong></p>
+            <button id="sir-atc-action-btn" class="neon-action-btn">지금 출석하기</button>
+        </div>
+    </div>
+
+    <style>
+        /* 미출석 네온 배너 스타일 */
+        #sir-atc-neon-banner {
+            position: fixed; bottom: 30px; right: 30px; z-index: 9998;
+            background: #222; color: #fff; padding: 12px 25px;
+            border-radius: 50px; cursor: pointer; display: flex; align-items: center; gap: 10px;
+            border: 2px solid #00d4ff;
+            box-shadow: 0 0 10px #00d4ff, inset 0 0 5px #00d4ff;
+            animation: neonPulse 1.5s infinite alternate;
+        }
+        @keyframes neonPulse {
+            from { box-shadow: 0 0 10px #00d4ff, 0 0 20px #00d4ff; }
+            to { box-shadow: 0 0 20px #ff00ff, 0 0 40px #ff00ff; border-color: #ff00ff; }
+        }
+        .neon-text { font-size: 14px; font-weight: bold; }
+
+        /* 논모달 윈도우 스타일 (배경 어둡게 처리 없음) */
+        #sir-atc-nonmodal-window {
+            position: fixed; bottom: 90px; right: 30px; z-index: 9999;
+            width: 280px; background: #fff; border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: none; flex-direction: column; overflow: hidden;
+            border: 1px solid #eee;
+        }
+        .atc-window-header { background: #f8f9fa; padding: 10px 15px; display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; border-bottom: 1px solid #eee; }
+        .close-btn { cursor: pointer; color: #aaa; font-size: 18px; }
+        .atc-window-body { padding: 20px; text-align: left; }
+        .atc-window-body p { margin: 5px 0; font-size: 14px; }
+        .neon-action-btn {
+            margin-top: 15px; width: 100%; padding: 10px; background: #4a6cf7;
+            color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;
+        }
+    </style>
+
+    <script>
+        function toggleAtcNonModal() {
+            const win = document.getElementById('sir-atc-nonmodal-window');
+            win.style.display = (win.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        jQuery(document).ready(function($) {
+            $('#sir-atc-action-btn').on('click', function() {
+                var $btn = $(this);
+                $btn.prop('disabled', true).text('처리 중...');
+                $.post('<?php echo admin_url('admin-ajax.php'); ?>', {
+                    action: 'process_attendance',
+                    security: '<?php echo wp_create_nonce("sir_attendance_nonce"); ?>'
+                }, function(res) {
+                    if(res.success) {
+                        alert(res.data);
+                        // 출석 완료 후 배너와 창을 즉시 제거
+                        $('#sir-atc-neon-banner, #sir-atc-nonmodal-window').fadeOut();
+                        location.reload(); 
+                    } else {
+                        alert(res.data);
+                        $btn.prop('disabled', false).text('지금 출석하기');
+                    }
+                });
+            });
+        });
+    </script>
+    <?php
+}
+
+/**
+ * 4. 숏코드 [sir_attendance]
  */
 add_shortcode('sir_attendance', 'sir_attendance_render_view');
 function sir_attendance_render_view() {
@@ -111,11 +213,10 @@ function sir_attendance_render_view() {
     $table_name = $wpdb->prefix . 'attendance_logs';
     $today = date('Y-m-d');
 
-    // 통계 계산
+    // 데이터 계산
     $total_days = (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $table_name WHERE user_id = %d", $user_id));
     $is_today_done = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table_name WHERE user_id = %d AND check_date = %s", $user_id, $today));
     
-    // 연속 출석 계산
     $cont_days = 0;
     $check_date = $is_today_done ? $today : date('Y-m-d', strtotime('-1 day'));
     while ($wpdb->get_var($wpdb->prepare("SELECT id FROM $table_name WHERE user_id = %d AND check_date = %s", $user_id, $check_date))) {
@@ -123,11 +224,9 @@ function sir_attendance_render_view() {
         $check_date = date('Y-m-d', strtotime('-1 day', strtotime($check_date)));
     }
 
-    // 최고 기록 업데이트
     $max_cont = max($cont_days, (int)get_user_meta($user_id, '_sir_atc_max_cont', true));
     update_user_meta($user_id, '_sir_atc_max_cont', $max_cont);
 
-    // 등급 정보
     $rank_name = '새싹';
     if (function_exists('mycred_get_users_rank')) {
         $rank_obj = mycred_get_users_rank($user_id);
@@ -135,7 +234,6 @@ function sir_attendance_render_view() {
     }
     $next_rank_days = 10 - ($total_days % 10);
 
-    // 랭킹 데이터 가져오기 (복구된 코드)
     $rankings = $wpdb->get_results("SELECT user_id, COUNT(*) as cnt FROM $table_name GROUP BY user_id ORDER BY cnt DESC LIMIT 10");
 
     ob_start(); ?>
@@ -188,21 +286,22 @@ function sir_attendance_render_view() {
         </div>
 
         <div class="atc-history-section">
-                    <h4 class="section-title">최근 출석 내역</h4>
-                    <div class="atc-history-table-wrapper">
-                        <table class="atc-modern-table">
-                            <thead><tr><th>날짜</th><th>포인트</th><th>상태</th></tr></thead>
-                            <tbody>
-                                <?php 
-                                $recent = $wpdb->get_results($wpdb->prepare("SELECT * FROM $table_name WHERE user_id = %d ORDER BY check_date DESC LIMIT 5", $user_id));
-                                foreach ($recent as $r) : ?>
-                                    <tr><td><?php echo $r->check_date; ?></td><td><?php echo $r->points + $r->bonus_points; ?>P</td><td>출석완료</td></tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+            <h4 class="section-title">📅 나의 최근 출석 내역</h4>
+            <div class="atc-history-table-wrapper">
+                <table class="atc-modern-table">
+                    <thead><tr><th>날짜</th><th>포인트</th><th>상태</th></tr></thead>
+                    <tbody>
+                        <?php 
+                        $recent = $wpdb->get_results($wpdb->prepare("SELECT * FROM $table_name WHERE user_id = %d ORDER BY check_date DESC LIMIT 5", $user_id));
+                        if($recent): foreach ($recent as $r) : ?>
+                            <tr><td><?php echo $r->check_date; ?></td><td><?php echo (int)$r->points + (int)$r->bonus_points; ?>P</td><td>출석완료</td></tr>
+                        <?php endforeach; else: ?>
+                            <tr><td colspan="3" style="text-align:center; padding:1.5rem;">기록이 없습니다.</td></tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
             </div>
+        </div>
 
         <div class="atc-ranking-section">
             <h4 class="section-title">🏆 출석 랭킹 TOP 10</h4>
@@ -238,38 +337,77 @@ function sir_attendance_render_view() {
                 action: 'process_attendance',
                 security: '<?php echo wp_create_nonce("sir_attendance_nonce"); ?>'
             }, function(res) {
-                if(res.success) { location.reload(); } else { alert(res.data); $btn.prop('disabled', false); }
+                if(res.success) { location.reload(); } else { alert(res.data); $btn.prop('disabled', false).text('오늘의 출석체크 하기'); }
             });
         });
     });
     </script>
 
     <style>
-        #wp-atc-modern-wrapper { font-family: 'Pretendard', sans-serif; max-width: 1000px; margin: 20px auto; padding: 10px; }
-        .atc-header-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        /* 가로 사이즈 최적화 테마 대응 CSS */
+        #wp-atc-modern-wrapper, #wp-atc-modern-wrapper * { box-sizing: border-box; }
+        #wp-atc-modern-wrapper { 
+            width: 100%; 
+            /* 가로폭 제한을 유연하게 조정 (테마 폭에 맞춤) */
+            max-width: 100%; 
+            margin: 20px auto; 
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .atc-header-section { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 25px; gap: 15px; }
         .atc-rank-badge-info { display: flex; align-items: center; gap: 15px; }
-        .atc-rank-icon { font-size: 40px; background: #f8f9fa; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
-        .atc-rank-title { font-size: 24px; margin: 0; font-weight: 800; }
-        .atc-next-rank-msg { font-size: 16px; font-weight: 600; color: #444; }
-        .atc-today-status { text-align: center; margin-bottom: 30px; }
-        .status-done { font-size: 18px; font-weight: 600; color: #2d3436; }
-        .status-btn-active { background: #4a6cf7; color: #fff; border: none; padding: 15px 40px; border-radius: 12px; font-weight: 700; cursor: pointer; }
-        .atc-cards-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 40px; }
-        .atc-stat-card { padding: 25px; border-radius: 20px; display: flex; justify-content: space-between; align-items: flex-start; }
-        .card-blue { background-color: #eaf2ff; } .card-purple { background-color: #f6f0ff; } .card-yellow { background-color: #fff9e6; }
-        .card-value { font-size: 32px; font-weight: 900; margin: 5px 0; }
-        .card-icon-box { background: rgba(255,255,255,0.6); width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #4a6cf7; }
+        .atc-rank-icon { font-size: 32px; background: #f8f9fa; width: 54px; height: 54px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+        .atc-rank-title { font-size: 20px; margin: 0; font-weight: bold; }
+        .atc-rank-subtitle { margin: 0; color: #888; font-size: 13px; }
+        .atc-next-rank-msg { font-size: 14px; font-weight: 600; }
+
+        .atc-today-status { text-align: center; margin-bottom: 25px; }
+        .status-done { font-size: 16px; font-weight: 600; color: #444; }
+        .status-btn-active { 
+            background: #4a6cf7; color: #fff; border: none; padding: 12px 30px; border-radius: 8px; 
+            font-weight: bold; cursor: pointer; transition: 0.2s;
+        }
+
+        /* 카드 그리드: 가로폭에 따라 자동 배치 */
+        .atc-cards-container { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+            gap: 20px; 
+            margin-bottom: 30px; 
+        }
+        .atc-stat-card { padding: 20px; border-radius: 15px; display: flex; justify-content: space-between; align-items: flex-start; }
+        .card-blue { background-color: #eaf2ff; } 
+        .card-purple { background-color: #f6f0ff; } 
+        .card-yellow { background-color: #fff9e6; }
+        .card-value { font-size: 28px; font-weight: 800; margin: 5px 0; line-height: 1.2; }
+        .card-label { font-size: 13px; font-weight: bold; opacity: 0.7; }
+        .card-subtext { font-size: 12px; opacity: 0.6; margin: 5px 0 0 0; }
+        .card-icon-box { background: rgba(255,255,255,0.4); width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+
+        /* 섹션 공통 */
+        .atc-history-section, .atc-ranking-section { background: #fff; border-radius: 15px; padding: 20px; border: 1px solid #eee; margin-bottom: 25px; width: 100%; }
+        .section-title { font-size: 16px; font-weight: bold; margin: 0 0 15px 0; padding-left: 10px; border-left: 4px solid #4a6cf7; }
         
-        /* 랭킹 스타일 */
-        .atc-ranking-section { background: #fff; border-radius: 20px; padding: 25px; border: 1px solid #eee; }
-        .section-title { font-size: 18px; font-weight: 800; margin-bottom: 20px; padding-left: 10px; border-left: 4px solid #4a6cf7; }
-        .atc-rank-row { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #f9f9f9; }
-        .atc-rank-num { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #eee; font-size: 12px; margin-right: 15px; font-weight: bold; }
+        /* 표 가로 사이즈 고정 및 스크롤 방지 */
+        .atc-history-table-wrapper { width: 100%; overflow-x: auto; }
+        .atc-modern-table { width: 100%; border-collapse: collapse; }
+        .atc-modern-table th { text-align: left; padding: 10px; border-bottom: 2px solid #f1f1f1; color: #999; font-size: 12px; }
+        .atc-modern-table td { padding: 12px 10px; border-bottom: 1px solid #f9f9f9; font-size: 14px; }
+
+        /* 랭킹 리스트 가로 전체 사용 */
+        .atc-rank-row { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #f9f9f9; width: 100%; }
+        .atc-rank-num { width: 24px; height: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #eee; font-size: 11px; margin-right: 12px; font-weight: bold; }
         .top-rank { background: #ffd700; color: #fff; }
-        .atc-rank-user { display: flex; align-items: center; gap: 12px; flex: 1; }
-        .atc-rank-display { font-weight: 700; font-size: 14px; }
-        .atc-rank-tag { font-size: 10px; background: #f0f0f0; padding: 2px 6px; border-radius: 4px; margin-left: 5px; }
-        @media screen and (max-width: 768px) { .atc-cards-container { grid-template-columns: 1fr; } .atc-header-section { flex-direction: column; text-align: center; gap: 10px; } }
+        .atc-rank-user { display: flex; align-items: center; gap: 10px; flex: 1; overflow: hidden; }
+        .atc-rank-display { font-weight: bold; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .atc-rank-tag { font-size: 10px; background: #f0f0f0; padding: 2px 6px; border-radius: 4px; }
+
+        @media screen and (max-width: 600px) {
+            .atc-header-section { flex-direction: column; text-align: center; justify-content: center; }
+            .atc-rank-badge-info { flex-direction: column; }
+            .atc-cards-container { grid-template-columns: 1fr; }
+        }
     </style>
     <?php
     return ob_get_clean();
