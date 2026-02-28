@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: SIR Style Attendance Pro (Complete Edition)
+ * Plugin Name: SIR Style wp_attendance Pro (Complete Edition)
  * Description: 관리자 관리, 네온 플로팅 배너, 현대적인 숏코드 레이아웃이 모두 통합된 최종 버전
  */
 
@@ -9,10 +9,10 @@ if (!defined('ABSPATH')) exit;
 /**
  * 1. DB 테이블 생성 및 초기화
  */
-register_activation_hook(__FILE__, 'attendance_setup_table');
-function attendance_setup_table() {
+register_activation_hook(__FILE__, 'wp_attendance_setup_table');
+function wp_attendance_setup_table() {
     global $wpdb;
-    $table_name = $wpdb->prefix . 'attendance_logs';
+    $table_name = $wpdb->prefix . 'wp_attendance_logs';
     $charset_collate = $wpdb->get_charset_collate();
 
     $sql = "CREATE TABLE IF NOT EXISTS $table_name (
@@ -35,30 +35,30 @@ function attendance_setup_table() {
 /**
  * 2. 관리자 메뉴 및 데이터 처리 (백업/복구/초기화)
  */
-add_action('admin_menu', 'attendance_admin_menu');
-function attendance_admin_menu() {
-    add_menu_page('출석 시스템', '출석 시스템', 'manage_options', 'sir-attendance-monitor', 'attendance_monitor_page', 'dashicons-calendar-check', 25);
-    add_submenu_page('sir-attendance-monitor', '기록 목록', '기록 목록', 'manage_options', 'sir-attendance-monitor', 'attendance_monitor_page');
-    add_submenu_page('sir-attendance-monitor', '설정 및 데이터 관리', '설정 및 데이터 관리', 'manage_options', 'sir-attendance-settings', 'attendance_settings_page');
+add_action('admin_menu', 'wp_attendance_admin_menu');
+function wp_attendance_admin_menu() {
+    add_menu_page('출석 시스템', '출석 시스템', 'manage_options', 'sir-wp_attendance-monitor', 'wp_attendance_monitor_page', 'dashicons-calendar-check', 25);
+    add_submenu_page('sir-wp_attendance-monitor', '기록 목록', '기록 목록', 'manage_options', 'sir-wp_attendance-monitor', 'wp_attendance_monitor_page');
+    add_submenu_page('sir-wp_attendance-monitor', '설정 및 데이터 관리', '설정 및 데이터 관리', 'manage_options', 'sir-wp_attendance-settings', 'wp_attendance_settings_page');
 }
 
 // 백업 기능
-add_action('admin_init', 'attendance_handle_backup');
-function attendance_handle_backup() {
-    if (isset($_GET['page']) && $_GET['page'] === 'sir-attendance-settings' && isset($_GET['action']) && $_GET['action'] === 'backup') {
+add_action('admin_init', 'wp_attendance_handle_backup');
+function wp_attendance_handle_backup() {
+    if (isset($_GET['page']) && $_GET['page'] === 'sir-wp_attendance-settings' && isset($_GET['action']) && $_GET['action'] === 'backup') {
         if (!current_user_can('manage_options')) return;
         global $wpdb;
-        $results = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}attendance_logs", ARRAY_A);
+        $results = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}wp_attendance_logs", ARRAY_A);
         header('Content-Type: application/json');
-        header('Content-Disposition: attachment; filename="attendance_backup_'.date('Ymd_His').'.json"');
+        header('Content-Disposition: attachment; filename="wp_attendance_backup_'.date('Ymd_His').'.json"');
         echo json_encode($results);
         exit;
     }
 }
 
-function attendance_monitor_page() {
+function wp_attendance_monitor_page() {
     global $wpdb;
-    $table_name = $wpdb->prefix . 'attendance_logs';
+    $table_name = $wpdb->prefix . 'wp_attendance_logs';
     $logs = $wpdb->get_results("SELECT * FROM $table_name ORDER BY check_date DESC LIMIT 50");
     echo '<div class="wrap"><h1>📅 출석 기록 모니터링</h1><table class="wp-list-table widefat fixed striped"><thead><tr><th>사용자</th><th>날짜</th><th>포인트 합계</th></tr></thead><tbody>';
     if($logs) {
@@ -71,9 +71,9 @@ function attendance_monitor_page() {
     echo '</tbody></table></div>';
 }
 
-function attendance_settings_page() {
+function wp_attendance_settings_page() {
     global $wpdb;
-    $table_name = $wpdb->prefix . 'attendance_logs';
+    $table_name = $wpdb->prefix . 'wp_attendance_logs';
 
     if (isset($_POST['save_sir_settings']) && check_admin_referer('sir_atc_settings_action', 'sir_atc_nonce')) {
         update_option('sir_atc_base_points', intval($_POST['base_points']));
@@ -81,7 +81,7 @@ function attendance_settings_page() {
         echo '<div class="updated"><p>설정이 저장되었습니다.</p></div>';
     }
 
-    if (isset($_POST['restore_attendance_data']) && check_admin_referer('sir_atc_restore_action', 'sir_atc_restore_nonce')) {
+    if (isset($_POST['restore_wp_attendance_data']) && check_admin_referer('sir_atc_restore_action', 'sir_atc_restore_nonce')) {
         if (!empty($_FILES['backup_file']['tmp_name'])) {
             $data = json_decode(file_get_contents($_FILES['backup_file']['tmp_name']), true);
             if (is_array($data)) {
@@ -94,7 +94,7 @@ function attendance_settings_page() {
         }
     }
 
-    if (isset($_POST['reset_attendance_all']) && check_admin_referer('sir_atc_reset_action', 'sir_atc_reset_nonce')) {
+    if (isset($_POST['reset_wp_attendance_all']) && check_admin_referer('sir_atc_reset_action', 'sir_atc_reset_nonce')) {
         $wpdb->query("TRUNCATE TABLE $table_name");
         echo '<div class="notice notice-warning"><p>모든 데이터가 초기화되었습니다.</p></div>';
     }
@@ -118,11 +118,11 @@ function attendance_settings_page() {
         <div style="display:flex; gap:20px; max-width:800px;">
             <div class="card" style="flex:1; padding:20px; border-radius:12px;">
                 <h2>📦 백업 및 복구</h2>
-                <a href="<?php echo admin_url('admin.php?page=sir-attendance-settings&action=backup'); ?>" class="button button-secondary">백업 다운로드 (.json)</a>
+                <a href="<?php echo admin_url('admin.php?page=sir-wp_attendance-settings&action=backup'); ?>" class="button button-secondary">백업 다운로드 (.json)</a>
                 <form method="post" enctype="multipart/form-data" style="margin-top:15px;">
                     <?php wp_nonce_field('sir_atc_restore_action', 'sir_atc_restore_nonce'); ?>
                     <input type="file" name="backup_file" accept=".json" required><br><br>
-                    <input type="submit" name="restore_attendance_data" class="button" value="복구하기" onclick="return confirm('기존 데이터가 모두 삭제됩니다. 계속하시겠습니까?');">
+                    <input type="submit" name="restore_wp_attendance_data" class="button" value="복구하기" onclick="return confirm('기존 데이터가 모두 삭제됩니다. 계속하시겠습니까?');">
                 </form>
             </div>
             <div class="card" style="flex:1; padding:20px; border:1px solid #d63638; border-radius:12px;">
@@ -130,7 +130,7 @@ function attendance_settings_page() {
                 <p>시스템의 모든 출석 로그를 삭제합니다.</p>
                 <form method="post">
                     <?php wp_nonce_field('sir_atc_reset_action', 'sir_atc_reset_nonce'); ?>
-                    <input type="submit" name="reset_attendance_all" class="button button-link-delete" style="color:#d63638; text-decoration:none;" value="전체 초기화 수행" onclick="return confirm('정말로 모든 데이터를 삭제하시겠습니까?');">
+                    <input type="submit" name="reset_wp_attendance_all" class="button button-link-delete" style="color:#d63638; text-decoration:none;" value="전체 초기화 수행" onclick="return confirm('정말로 모든 데이터를 삭제하시겠습니까?');">
                 </form>
             </div>
         </div>
@@ -141,14 +141,14 @@ function attendance_settings_page() {
 /**
  * 3. 출석 처리 AJAX (안정성 강화)
  */
-add_action('wp_ajax_process_attendance', 'sir_ajax_process_attendance');
-function sir_ajax_process_attendance() {
-    check_ajax_referer('attendance_nonce', 'security');
+add_action('wp_ajax_process_wp_attendance', 'sir_ajax_process_wp_attendance');
+function sir_ajax_process_wp_attendance() {
+    check_ajax_referer('wp_attendance_nonce', 'security');
     if (!is_user_logged_in()) wp_send_json_error('로그인이 필요합니다.');
 
     global $wpdb;
     $user_id = get_current_user_id();
-    $table_name = $wpdb->prefix . 'attendance_logs';
+    $table_name = $wpdb->prefix . 'wp_attendance_logs';
     $today = date('Y-m-d');
     $yesterday = date('Y-m-d', strtotime('-1 day'));
 
@@ -163,7 +163,7 @@ function sir_ajax_process_attendance() {
     $inserted = $wpdb->insert($table_name, ['user_id' => $user_id, 'check_date' => $today, 'points' => $base_p, 'bonus_points' => $bonus_p], ['%d', '%s', '%d', '%d']);
 
     if ($inserted) {
-        if (function_exists('mycred_add')) mycred_add('attendance_check', $user_id, $total_p, '출석 보상', '', '', 'mycred_default');
+        if (function_exists('mycred_add')) mycred_add('wp_attendance_check', $user_id, $total_p, '출석 보상', '', '', 'mycred_default');
         wp_send_json_success("출석 완료! {$total_p}P가 적립되었습니다.");
     } else { wp_send_json_error('저장 중 오류가 발생했습니다.'); }
 }
@@ -171,10 +171,10 @@ function sir_ajax_process_attendance() {
 /**
  * 4. 무지개 네온 플로팅 배너 및 모달
  */
-add_action('wp_footer', 'attendance_floating_neon_banner');
-function attendance_floating_neon_banner() {
+add_action('wp_footer', 'wp_attendance_floating_neon_banner');
+function wp_attendance_floating_neon_banner() {
     if (!is_user_logged_in()) return;
-    global $wpdb; $user_id = get_current_user_id(); $table_name = $wpdb->prefix . 'attendance_logs'; $today = date('Y-m-d');
+    global $wpdb; $user_id = get_current_user_id(); $table_name = $wpdb->prefix . 'wp_attendance_logs'; $today = date('Y-m-d');
     if ($wpdb->get_var($wpdb->prepare("SELECT id FROM $table_name WHERE user_id = %d AND check_date = %s", $user_id, $today))) return;
 
     $total_days = (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $table_name WHERE user_id = %d", $user_id));
@@ -226,7 +226,7 @@ function attendance_floating_neon_banner() {
                 var $btn = $(this);
                 if($btn.hasClass('processing')) return;
                 $btn.addClass('processing').prop('disabled', true).text('처리 중...');
-                $.post('<?php echo admin_url('admin-ajax.php'); ?>', { action: 'process_attendance', security: '<?php echo wp_create_nonce("attendance_nonce"); ?>' }, function(res) {
+                $.post('<?php echo admin_url('admin-ajax.php'); ?>', { action: 'process_wp_attendance', security: '<?php echo wp_create_nonce("wp_attendance_nonce"); ?>' }, function(res) {
                     if(res.success) { alert(res.data); location.reload(); }
                     else { alert(res.data); $btn.removeClass('processing').prop('disabled', false).text('지금 바로 출석하기'); }
                 });
@@ -237,13 +237,13 @@ function attendance_floating_neon_banner() {
 }
 
 /**
- * 5. 숏코드 [attendance] (현대적 대시보드 레이아웃 CSS 포함)
+ * 5. 숏코드 [wp_attendance] (현대적 대시보드 레이아웃 CSS 포함)
  */
-add_shortcode('attendance', 'attendance_render_view');
-function attendance_render_view() {
+add_shortcode('wp_attendance', 'wp_attendance_render_view');
+function wp_attendance_render_view() {
     if (!is_user_logged_in()) return "<div style='padding:40px; text-align:center; background:#f8faff; border-radius:20px;'>로그인이 필요합니다.</div>";
     
-    global $wpdb; $user_id = get_current_user_id(); $table_name = $wpdb->prefix . 'attendance_logs'; $today = date('Y-m-d');
+    global $wpdb; $user_id = get_current_user_id(); $table_name = $wpdb->prefix . 'wp_attendance_logs'; $today = date('Y-m-d');
     $total_days = (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $table_name WHERE user_id = %d", $user_id));
     $is_today_done = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table_name WHERE user_id = %d AND check_date = %s", $user_id, $today));
     
@@ -422,7 +422,7 @@ function attendance_render_view() {
             $('#wp-atc-main-btn').on('click', function() {
                 var $btn = $(this);
                 $btn.prop('disabled', true).text('처리 중...');
-                $.post('<?php echo admin_url('admin-ajax.php'); ?>', { action: 'process_attendance', security: '<?php echo wp_create_nonce("attendance_nonce"); ?>' }, function(res) {
+                $.post('<?php echo admin_url('admin-ajax.php'); ?>', { action: 'process_wp_attendance', security: '<?php echo wp_create_nonce("wp_attendance_nonce"); ?>' }, function(res) {
                     if(res.success) { alert(res.data); location.reload(); }
                     else { alert(res.data); $btn.prop('disabled', false).text('오늘의 출석체크 하기'); }
                 });
@@ -436,8 +436,8 @@ function attendance_render_view() {
 /**
  * 6. 플러그인 삭제 시 정리
  */
-register_uninstall_hook(__FILE__, 'attendance_cleanup');
-function attendance_cleanup() {
+register_uninstall_hook(__FILE__, 'wp_attendance_cleanup');
+function wp_attendance_cleanup() {
     global $wpdb;
-    $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}attendance_logs");
+    $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}wp_attendance_logs");
 }
