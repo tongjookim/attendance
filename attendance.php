@@ -1,7 +1,8 @@
 <?php
 /**
- * Plugin Name: SIR Style wp_attendance Pro (Complete Edition)
- * Description: 관리자 관리, 네온 플로팅 배너, 현대적인 숏코드 레이아웃이 모두 통합된 최종 버전
+ * Plugin Name: AI 스타일 워드프레스 출석체크
+ * Description: 사용자의 출석, 연속 출석, 출석 포인트, 보너스 포인트 기능 제공
+ * Author: kimtongjoo
  */
 
 if (!defined('ABSPATH')) exit;
@@ -441,3 +442,4 @@ function wp_attendance_cleanup() {
     global $wpdb;
     $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}wp_attendance_logs");
 }
+
