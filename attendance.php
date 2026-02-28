@@ -300,13 +300,23 @@ function sir_attendance_render_view() {
             <div class="atc-panel">
                 <h3>📅 나의 최근 출석 내역</h3>
                 <table class="atc-table">
-                    <thead><tr><th>날짜</th><th>포인트</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th>날짜</th>
+                            <th>포인트</th>
+                            <th>보너스</th><th>상태</th>
+                        </tr>
+                    </thead>
                     <tbody>
-                        <?php $recent = $wpdb->get_results($wpdb->prepare("SELECT * FROM $table_name WHERE user_id = %d ORDER BY check_date DESC LIMIT 5", $user_id));
+                        <?php 
+                        $recent = $wpdb->get_results($wpdb->prepare("SELECT * FROM $table_name WHERE user_id = %d ORDER BY check_date DESC LIMIT 5", $user_id));
                         if($recent): foreach ($recent as $r) : ?>
-                            <tr><td><?php echo $r->check_date; ?></td><td><?php echo (int)$r->points + (int)$r->bonus_points; ?>P</td></tr>
+                            <tr>
+                                <td><?php echo $r->check_date; ?></td>
+                                <td><?php echo (int)$r->points; ?>P</td> <td class="bonus-cell"><?php echo (int)$r->bonus_points; ?>P</td> <td><span class="status-tag">완료</span></td>
+                            </tr>
                         <?php endforeach; else: ?>
-                            <tr><td colspan="2" class="no-data">출석 내역이 없습니다.</td></tr>
+                            <tr><td colspan="4" style="text-align:center; padding:1.5rem;">기록이 없습니다.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -345,6 +355,32 @@ function sir_attendance_render_view() {
             display: inline-block;  /* 간격 적용을 위해 추가 */
         }
 
+        /* 테이블 헤더 폭 조정 */
+        .atc-modern-table th, .atc-modern-table td {
+            padding: 12px 10px;
+            text-align: center; /* 텍스트 중앙 정렬로 가독성 확보 */
+        }
+
+        /* 보너스 포인트 숫자 강조 */
+        .bonus-cell {
+            color: #a777e3; /* 보너스 카드 색상 계열인 보라색 적용 */
+            font-weight: bold;
+        }
+
+        /* 완료 태그 스타일 (선택 사항) */
+        .status-tag {
+            background: #e7f9ed;
+            color: #2ecc71;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        /* 테이블 래퍼 유동적 대응 */
+        .atc-history-table-wrapper {
+            overflow-x: auto; /* 화면이 작아지면 가로 스크롤 허용 */
+        }
+
         /* 랭킹 숫자 일수 오른쪽 정렬 유지 */
         .rank-count { margin-left: auto; color: #4a6cf7; font-weight: bold; }
 
@@ -363,8 +399,8 @@ function sir_attendance_render_view() {
         .stat-card.blue { background:linear-gradient(135deg,#6e8efb,#a777e3); }
         .stat-card.purple { background:linear-gradient(135deg,#9d50bb,#6e48aa); }
         .stat-card.orange { background:linear-gradient(135deg,#f2994a,#f2c94c); }
-        .stat-card .label { font-size:14px; opacity:0.9; }
-        .stat-card .value { display:block; font-size:28px; font-weight:800; margin-top:10px; }
+        .stat-card .label { font-size:14px; opacity:0.9; margin-left: 15px; }
+        .stat-card .value { display:block; font-size:28px; font-weight:800; margin-top:10px; margin-left: 15px;}
         .stat-icon { position:absolute; right: 15px; top: 15px; line-height: 1px z-index: 1; bottom:10px; opacity:0.2; font-size:80px; pointer-enents: none; }
         /* 하단 레이아웃 */
         .atc-bottom-grid { display:grid; grid-template-columns:1.5fr 1fr; gap:25px; }
