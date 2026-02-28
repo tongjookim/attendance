@@ -9,8 +9,8 @@ if (!defined('ABSPATH')) exit;
 /**
  * 1. DB 테이블 생성 및 초기화
  */
-register_activation_hook(__FILE__, 'sir_attendance_setup_table');
-function sir_attendance_setup_table() {
+register_activation_hook(__FILE__, 'attendance_setup_table');
+function attendance_setup_table() {
     global $wpdb;
     $table_name = $wpdb->prefix . 'attendance_logs';
     $charset_collate = $wpdb->get_charset_collate();
@@ -35,16 +35,16 @@ function sir_attendance_setup_table() {
 /**
  * 2. 관리자 메뉴 및 데이터 처리 (백업/복구/초기화)
  */
-add_action('admin_menu', 'sir_attendance_admin_menu');
-function sir_attendance_admin_menu() {
-    add_menu_page('출석 시스템', '출석 시스템', 'manage_options', 'sir-attendance-monitor', 'sir_attendance_monitor_page', 'dashicons-calendar-check', 25);
-    add_submenu_page('sir-attendance-monitor', '기록 목록', '기록 목록', 'manage_options', 'sir-attendance-monitor', 'sir_attendance_monitor_page');
-    add_submenu_page('sir-attendance-monitor', '설정 및 데이터 관리', '설정 및 데이터 관리', 'manage_options', 'sir-attendance-settings', 'sir_attendance_settings_page');
+add_action('admin_menu', 'attendance_admin_menu');
+function attendance_admin_menu() {
+    add_menu_page('출석 시스템', '출석 시스템', 'manage_options', 'sir-attendance-monitor', 'attendance_monitor_page', 'dashicons-calendar-check', 25);
+    add_submenu_page('sir-attendance-monitor', '기록 목록', '기록 목록', 'manage_options', 'sir-attendance-monitor', 'attendance_monitor_page');
+    add_submenu_page('sir-attendance-monitor', '설정 및 데이터 관리', '설정 및 데이터 관리', 'manage_options', 'sir-attendance-settings', 'attendance_settings_page');
 }
 
 // 백업 기능
-add_action('admin_init', 'sir_attendance_handle_backup');
-function sir_attendance_handle_backup() {
+add_action('admin_init', 'attendance_handle_backup');
+function attendance_handle_backup() {
     if (isset($_GET['page']) && $_GET['page'] === 'sir-attendance-settings' && isset($_GET['action']) && $_GET['action'] === 'backup') {
         if (!current_user_can('manage_options')) return;
         global $wpdb;
@@ -56,7 +56,7 @@ function sir_attendance_handle_backup() {
     }
 }
 
-function sir_attendance_monitor_page() {
+function attendance_monitor_page() {
     global $wpdb;
     $table_name = $wpdb->prefix . 'attendance_logs';
     $logs = $wpdb->get_results("SELECT * FROM $table_name ORDER BY check_date DESC LIMIT 50");
@@ -71,7 +71,7 @@ function sir_attendance_monitor_page() {
     echo '</tbody></table></div>';
 }
 
-function sir_attendance_settings_page() {
+function attendance_settings_page() {
     global $wpdb;
     $table_name = $wpdb->prefix . 'attendance_logs';
 
@@ -143,7 +143,7 @@ function sir_attendance_settings_page() {
  */
 add_action('wp_ajax_process_attendance', 'sir_ajax_process_attendance');
 function sir_ajax_process_attendance() {
-    check_ajax_referer('sir_attendance_nonce', 'security');
+    check_ajax_referer('attendance_nonce', 'security');
     if (!is_user_logged_in()) wp_send_json_error('로그인이 필요합니다.');
 
     global $wpdb;
@@ -171,8 +171,8 @@ function sir_ajax_process_attendance() {
 /**
  * 4. 무지개 네온 플로팅 배너 및 모달
  */
-add_action('wp_footer', 'sir_attendance_floating_neon_banner');
-function sir_attendance_floating_neon_banner() {
+add_action('wp_footer', 'attendance_floating_neon_banner');
+function attendance_floating_neon_banner() {
     if (!is_user_logged_in()) return;
     global $wpdb; $user_id = get_current_user_id(); $table_name = $wpdb->prefix . 'attendance_logs'; $today = date('Y-m-d');
     if ($wpdb->get_var($wpdb->prepare("SELECT id FROM $table_name WHERE user_id = %d AND check_date = %s", $user_id, $today))) return;
@@ -226,7 +226,7 @@ function sir_attendance_floating_neon_banner() {
                 var $btn = $(this);
                 if($btn.hasClass('processing')) return;
                 $btn.addClass('processing').prop('disabled', true).text('처리 중...');
-                $.post('<?php echo admin_url('admin-ajax.php'); ?>', { action: 'process_attendance', security: '<?php echo wp_create_nonce("sir_attendance_nonce"); ?>' }, function(res) {
+                $.post('<?php echo admin_url('admin-ajax.php'); ?>', { action: 'process_attendance', security: '<?php echo wp_create_nonce("attendance_nonce"); ?>' }, function(res) {
                     if(res.success) { alert(res.data); location.reload(); }
                     else { alert(res.data); $btn.removeClass('processing').prop('disabled', false).text('지금 바로 출석하기'); }
                 });
@@ -237,10 +237,10 @@ function sir_attendance_floating_neon_banner() {
 }
 
 /**
- * 5. 숏코드 [sir_attendance] (현대적 대시보드 레이아웃 CSS 포함)
+ * 5. 숏코드 [attendance] (현대적 대시보드 레이아웃 CSS 포함)
  */
-add_shortcode('sir_attendance', 'sir_attendance_render_view');
-function sir_attendance_render_view() {
+add_shortcode('attendance', 'attendance_render_view');
+function attendance_render_view() {
     if (!is_user_logged_in()) return "<div style='padding:40px; text-align:center; background:#f8faff; border-radius:20px;'>로그인이 필요합니다.</div>";
     
     global $wpdb; $user_id = get_current_user_id(); $table_name = $wpdb->prefix . 'attendance_logs'; $today = date('Y-m-d');
@@ -422,7 +422,7 @@ function sir_attendance_render_view() {
             $('#wp-atc-main-btn').on('click', function() {
                 var $btn = $(this);
                 $btn.prop('disabled', true).text('처리 중...');
-                $.post('<?php echo admin_url('admin-ajax.php'); ?>', { action: 'process_attendance', security: '<?php echo wp_create_nonce("sir_attendance_nonce"); ?>' }, function(res) {
+                $.post('<?php echo admin_url('admin-ajax.php'); ?>', { action: 'process_attendance', security: '<?php echo wp_create_nonce("attendance_nonce"); ?>' }, function(res) {
                     if(res.success) { alert(res.data); location.reload(); }
                     else { alert(res.data); $btn.prop('disabled', false).text('오늘의 출석체크 하기'); }
                 });
@@ -436,8 +436,8 @@ function sir_attendance_render_view() {
 /**
  * 6. 플러그인 삭제 시 정리
  */
-register_uninstall_hook(__FILE__, 'sir_attendance_cleanup');
-function sir_attendance_cleanup() {
+register_uninstall_hook(__FILE__, 'attendance_cleanup');
+function attendance_cleanup() {
     global $wpdb;
     $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}attendance_logs");
 }
